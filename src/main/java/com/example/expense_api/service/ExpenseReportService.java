@@ -1,11 +1,15 @@
 package com.example.expense_api.service;
 
+import com.example.expense_api.domain.dto.ApprovalResponse;
 import com.example.expense_api.domain.dto.ExpenseItemRequest;
+import com.example.expense_api.domain.dto.ExpenseItemResponse;
 import com.example.expense_api.domain.dto.ExpenseReportRequest;
+import com.example.expense_api.domain.dto.ExpenseReportResponse;
 import com.example.expense_api.domain.entity.*;
 import com.example.expense_api.domain.enums.ApprovalDecision;
 import com.example.expense_api.domain.enums.ReportStatus;
 import com.example.expense_api.domain.enums.RoleName;
+import com.example.expense_api.exception.ReportAccessDeniedException;
 import com.example.expense_api.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -13,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Core business logic for expense reports.
@@ -129,6 +134,68 @@ public class ExpenseReportService {
         auditLog(manager, "REJECT_REPORT", "Report #" + reportId + " rejected");
 
         reportRepository.save(report);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ExpenseReportResponse> getReports(Long userId, RoleName role) {
+        List<ExpenseReport> reports = (role == RoleName.EMPLOYEE)
+                ? reportRepository.findByUserIdWithDetails(userId)
+                : reportRepository.findAllWithDetails();
+        return reports.stream().map(this::toReportResponse).collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public ExpenseReportResponse getReportById(Long reportId, Long requestingUserId, RoleName role) {
+        ExpenseReport report = reportRepository.findByIdWithDetails(reportId)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found"));
+        if (role == RoleName.EMPLOYEE && !report.getUser().getId().equals(requestingUserId)) {
+            throw new ReportAccessDeniedException("Access denied: you do not own this report");
+        }
+        return toReportResponse(report);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ExpenseReportResponse> getReportsByStatus(ReportStatus status) {
+        return reportRepository.findByStatusWithDetails(status)
+                .stream().map(this::toReportResponse).collect(Collectors.toList());
+    }
+
+    private ExpenseItemResponse toItemResponse(ExpenseItem item) {
+        return ExpenseItemResponse.builder()
+                .id(item.getId())
+                .category(item.getCategory())
+                .amount(item.getAmount())
+                .description(item.getDescription())
+                .createdAt(item.getCreatedAt())
+                .build();
+    }
+
+    private ApprovalResponse toApprovalResponse(Approval approval) {
+        return ApprovalResponse.builder()
+                .id(approval.getId())
+                .managerId(approval.getManager().getId())
+                .managerEmail(approval.getManager().getEmail())
+                .decision(approval.getDecision())
+                .decidedAt(approval.getCreatedAt())
+                .build();
+    }
+
+    private ExpenseReportResponse toReportResponse(ExpenseReport report) {
+        String department = (report.getUser().getDepartment() != null)
+                ? report.getUser().getDepartment().getName()
+                : null;
+        return ExpenseReportResponse.builder()
+                .id(report.getId())
+                .status(report.getStatus())
+                .totalAmount(report.getTotalAmount())
+                .createdAt(report.getCreatedAt())
+                .updatedAt(report.getUpdatedAt())
+                .userId(report.getUser().getId())
+                .userEmail(report.getUser().getEmail())
+                .userDepartment(department)
+                .items(report.getExpenseItems().stream().map(this::toItemResponse).collect(Collectors.toList()))
+                .approvals(report.getApprovals().stream().map(this::toApprovalResponse).collect(Collectors.toList()))
+                .build();
     }
 
     public BigDecimal calculateTotal(List<ExpenseItemRequest> items) {
