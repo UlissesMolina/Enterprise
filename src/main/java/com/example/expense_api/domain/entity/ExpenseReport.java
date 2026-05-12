@@ -5,8 +5,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "expense_reports", indexes = {
@@ -34,9 +34,9 @@ public class ExpenseReport extends BaseEntity {
 
     @OneToMany(mappedBy = "report", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<ExpenseItem> expenseItems = new ArrayList<>();
+    private Set<ExpenseItem> expenseItems = new HashSet<>();
 
     @OneToMany(mappedBy = "report", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<Approval> approvals = new ArrayList<>();
+    private Set<Approval> approvals = new HashSet<>();
 }

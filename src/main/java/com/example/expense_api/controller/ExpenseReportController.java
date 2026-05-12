@@ -2,7 +2,6 @@ package com.example.expense_api.controller;
 
 import com.example.expense_api.domain.dto.ExpenseReportRequest;
 import com.example.expense_api.domain.dto.ExpenseReportResponse;
-import com.example.expense_api.domain.entity.ExpenseReport;
 import com.example.expense_api.domain.enums.ReportStatus;
 import com.example.expense_api.security.CustomUserDetails;
 import com.example.expense_api.service.ExpenseReportService;
@@ -60,7 +59,7 @@ public class ExpenseReportController {
     @PostMapping
     @Operation(summary = "Submit an expense report")
     @PreAuthorize("hasAnyRole('EMPLOYEE', 'MANAGER', 'ADMIN')")
-    public ResponseEntity<ExpenseReport> submitReport(@Valid @RequestBody ExpenseReportRequest request) {
+    public ResponseEntity<ExpenseReportResponse> submitReport(@Valid @RequestBody ExpenseReportRequest request) {
         Long userId = SecurityUtils.getCurrentUserId();
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();

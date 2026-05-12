@@ -33,7 +33,7 @@ public class ExpenseReportService {
     private final AuditLogRepository auditLogRepository;
 
     @Transactional
-    public ExpenseReport submitReport(Long userId, ExpenseReportRequest request) {
+    public ExpenseReportResponse submitReport(Long userId, ExpenseReportRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
@@ -59,7 +59,7 @@ public class ExpenseReportService {
 
         auditLog(user, "SUBMIT_REPORT", "Report #" + report.getId() + " submitted");
 
-        return report;
+        return toReportResponse(report);
     }
 
     @Transactional
